@@ -83,10 +83,6 @@ flowindex scan
 flowindex context "fix duplicate payments when webhook retries"
 ```
 
-Record a GIF locally: `brew install vhs && ./scripts/record-demo.sh`
-
-See [docs/demo-output.txt](docs/demo-output.txt) for captured terminal output.
-
 ## CLI examples
 
 ```bash

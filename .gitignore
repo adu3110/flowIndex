@@ -8,3 +8,12 @@ __pycache__/
 dist/
 build/
 .flowindex/
+
+# Local launch / growth docs (keep private, not in public repo)
+docs/LAUNCH.md
+docs/SHOW_HN.md
+docs/PYPI.md
+docs/demo-output.txt
+scripts/demo.tape
+scripts/record-demo.sh
+scripts/run-demo.sh
