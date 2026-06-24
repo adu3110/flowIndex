@@ -6,7 +6,7 @@ import re
 
 from sqlmodel import Session, select
 
-from flowindex.db.models import CommitNode, EntrypointNode, FileNode, SymbolNode, TestNode
+from flowindex.db.models import CommitNode, EntrypointNode, FileNode, GraphEdge, SymbolNode, TestNode
 from flowindex.indexer.impact import analyze_impact, suggest_tests
 from flowindex.schemas import ContextPack
 
@@ -61,9 +61,29 @@ def _rank_entrypoints(session: Session, repo_id: int, keywords: list[str]) -> li
 
 def _rank_files(session: Session, repo_id: int, keywords: list[str]) -> list[str]:
     files = session.exec(select(FileNode).where(FileNode.repo_id == repo_id)).all()
+
+    # Build a reverse import index: target_file_id → set of source_file_ids
+    # This lets us surface dependency files (e.g. ledger.py) when an importing
+    # file (e.g. payments.py) matches a keyword.
+    import_edges = session.exec(
+        select(GraphEdge).where(GraphEdge.repo_id == repo_id, GraphEdge.edge_type == "imports")
+    ).all()
+    imported_by: dict[int, set[int]] = {}
+    for e in import_edges:
+        imported_by.setdefault(e.target_id, set()).add(e.source_id)
+
+    file_by_id = {f.id: f for f in files if f.id}
+
     scored: list[tuple[float, str]] = []
     for f in files:
         score = _score_text(f.path, keywords)
+        # Bonus: this file is imported by a file that itself matches keywords
+        if f.id and f.id in imported_by:
+            for src_id in imported_by[f.id]:
+                src = file_by_id.get(src_id)
+                if src and _score_text(src.path, keywords) > 0:
+                    score += 0.5
+                    break
         if score:
             scored.append((score, f.path))
     scored.sort(key=lambda x: -x[0])
@@ -98,6 +118,9 @@ def _rank_tests(
         score = _score_text(t.test_name, keywords) + _score_text(path, keywords)
         if any(kw in path.lower() for kw in keywords):
             score += 0.5
+        # Bonus: target_hint (e.g. "ledger") directly matches a keyword
+        if t.target_hint and any(kw in t.target_hint for kw in keywords):
+            score += 1.0
         if score:
             scored.append((score, path))
     scored.sort(key=lambda x: -x[0])

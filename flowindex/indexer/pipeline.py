@@ -67,7 +67,13 @@ def run_scan(config: FlowIndexConfig) -> ScanSummary:
             file_path_map[scanned.relative_path] = file_node.id
             files_indexed += 1
 
-            result = parser.parse(path, scanned.source)
+            try:
+                result = parser.parse(path, scanned.source)
+            except Exception as exc:  # noqa: BLE001
+                # Parsing errors should not abort the whole scan; skip and continue
+                import logging
+                logging.getLogger(__name__).warning("Parser error on %s: %s", scanned.relative_path, exc)
+                continue
             symbol_map = store_symbols(session, repo.id, file_node.id, result.symbols)
             global_symbol_map.update(symbol_map)
             symbols_indexed += len(result.symbols)

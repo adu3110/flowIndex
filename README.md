@@ -199,6 +199,19 @@ fix duplicate payments when webhook retries
 - update_ledger() is shared by refunds and payments.
 ```
 
+## Limitations
+
+FlowIndex is a static-analysis tool, not a runtime tracer. Here is what works well and what is on the roadmap:
+
+| Claim | Current reality |
+|-------|-----------------|
+| **Behavior indexing** | Static analysis + git co-change heuristics. Runtime traces not yet ingested. |
+| **Call paths** | Cross-file resolution via import graph + named symbol matching. Not a full compiler-grade call graph. |
+| **Test selection** | Name similarity, import edges, graph coverage links, co-change patterns. Not coverage-backed. |
+| **Git history** | Scoped to the indexed repo root even inside monorepos. Commit relevance is keyword-matched, not coverage-tracked. |
+| **TS/JS support** | Heuristic parser: functions, arrow functions, classes, class methods, qualified calls. Tree-sitter is on the roadmap. |
+| **Context packs** | Import-aware file ranking. May miss files with no keyword match in their name. |
+
 ## Roadmap
 
 - [ ] Tree-sitter parsers for TS/JS and richer call resolution

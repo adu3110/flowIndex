@@ -58,7 +58,11 @@ def scan(
         init_db(root / ".flowindex" / "flowindex.db")
         config = load_config(root)
 
-    summary = run_scan(config)
+    try:
+        summary = run_scan(config)
+    except Exception as exc:
+        console.print(f"[red]Scan failed:[/red] {exc}")
+        raise typer.Exit(1) from exc
     print_scan_summary(summary.model_dump())
 
 

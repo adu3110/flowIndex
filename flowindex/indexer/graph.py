@@ -54,6 +54,11 @@ def build_file_graph(
             add_edge(session, repo_id, "file", file_id, "symbol", sym_id, "defines", evidence=sym.name)
             count += 1
 
+    # Build a set of symbols that are explicitly imported into this file.
+    # This enables cross-file call resolution: if a file imports `charge` from
+    # `ledger`, calls to `charge()` can be matched against the global symbol_map
+    # even though `charge` is not defined locally.
+    imported_symbols: dict[str, int] = {}
     for imp in parse_result.imports:
         target_file = _resolve_import(imp, file_path_map)
         if target_file:
@@ -68,13 +73,19 @@ def build_file_graph(
                 evidence=imp.module,
             )
             count += 1
+        # Index each named import so _resolve_call can find cross-file symbols
+        for name in imp.names:
+            for qname, sid in symbol_map.items():
+                if qname == name or qname.endswith(f".{name}"):
+                    imported_symbols[name] = sid
+                    imported_symbols[qname] = sid
 
     for sym in parse_result.symbols:
         sym_id = sym_by_qname.get(sym.qualified_name)
         if not sym_id:
             continue
         for call in sym.calls:
-            target_sym = _resolve_call(call, sym_by_name, sym_by_qname, symbol_map)
+            target_sym = _resolve_call(call, sym_by_name, sym_by_qname, symbol_map, imported_symbols)
             if target_sym:
                 add_edge(
                     session,
@@ -185,10 +196,25 @@ def _resolve_call(
     sym_by_name: dict[str, int],
     sym_by_qname: dict[str, int],
     all_symbols: dict[str, int],
+    imported_symbols: dict[str, int] | None = None,
 ) -> int | None:
+    # 1. Same-file exact name match
     if call.callee in sym_by_name:
         return sym_by_name[call.callee]
+    # 2. Same-file qualified name match
     if call.callee in sym_by_qname:
         return sym_by_qname[call.callee]
+    # 3. Strip obj.method() → method, try local lookup
     base = call.callee.split(".")[-1]
-    return sym_by_name.get(base)
+    if base in sym_by_name:
+        return sym_by_name[base]
+    # 4. Cross-file: check symbols that were explicitly imported into this file
+    if imported_symbols:
+        if call.callee in imported_symbols:
+            return imported_symbols[call.callee]
+        if base in imported_symbols:
+            return imported_symbols[base]
+    # 5. Repo-wide fallback by base name (lower precision, last resort)
+    if base in all_symbols:
+        return all_symbols[base]
+    return None

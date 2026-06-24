@@ -37,12 +37,36 @@ def analyze_impact(session: Session, repo_id: int, target: str) -> ImpactResult:
 
 
 def suggest_tests(session: Session, repo_id: int, target: str) -> list[str]:
+    """Suggest tests for a target file or symbol.
+
+    Sources (applied in priority order):
+    1. Tests directly linked via graph ``covers`` edges
+    2. Tests in files that import the target file (transitive relevance)
+    3. Keyword / name / target_hint matching against all stored test nodes
+    """
     impact = analyze_impact(session, repo_id, target)
     tests = set(impact.related_tests)
 
     file_node, symbol_node = _resolve_target(session, repo_id, target)
     keyword = (symbol_node.name if symbol_node else _path_stem(file_node.path if file_node else target)).lower()
 
+    # Source 2: find test files that import the target file via graph edges
+    if file_node and file_node.id:
+        import_edges = session.exec(
+            select(GraphEdge).where(
+                GraphEdge.repo_id == repo_id,
+                GraphEdge.edge_type == "imports",
+                GraphEdge.target_id == file_node.id,
+            )
+        ).all()
+        importing_file_ids = {e.source_id for e in import_edges}
+        if importing_file_ids:
+            for tn in session.exec(select(TestNode).where(TestNode.repo_id == repo_id)).all():
+                if tn.file_id in importing_file_ids:
+                    path = _file_path(session, tn.file_id) or tn.test_name
+                    tests.add(path)
+
+    # Source 3: keyword / name / target_hint matching (original heuristic)
     all_tests = session.exec(select(TestNode).where(TestNode.repo_id == repo_id)).all()
     for test_node in all_tests:
         file_path = _file_path(session, test_node.file_id) or test_node.test_name

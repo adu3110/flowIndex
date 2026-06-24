@@ -9,11 +9,25 @@ from datetime import UTC, datetime
 from itertools import combinations
 from pathlib import Path
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from flowindex.config import FlowIndexConfig
 from flowindex.db.models import RISK_KEYWORDS, CommitNode
 from flowindex.indexer.graph import add_edge
+
+
+def find_git_root(start: Path) -> Path | None:
+    """Return the git repository root containing start, walking upward.
+
+    This is used so that ``flowindex init --here`` inside a monorepo or a
+    nested directory still reads git history scoped to the correct repo root.
+    Returns None if no .git directory is found.
+    """
+    current = start.resolve()
+    for path in [current, *current.parents]:
+        if (path / ".git").is_dir():
+            return path
+    return None
 
 
 @dataclass
@@ -100,11 +114,12 @@ def analyze_git_history(
 
 
 def commits_for_file(session: Session, repo_id: int, file_path: str, limit: int = 10) -> list[str]:
-    """Return recent commit summaries mentioning or touching a file (via git re-log)."""
-    # Stored commit messages matched by filename keyword heuristic
-    rows = session.exec(
-        __import__("sqlmodel").select(CommitNode).where(CommitNode.repo_id == repo_id)
-    ).all()
+    """Return recent commit summaries related to a file path.
+
+    Matches on the file stem (e.g. 'ledger') against stored commit messages.
+    Keyword-based, not coverage-backed — see Limitations in README.
+    """
+    rows = session.exec(select(CommitNode).where(CommitNode.repo_id == repo_id)).all()
     keyword = Path(file_path).stem.lower()
     matched = []
     for row in rows:
@@ -114,10 +129,39 @@ def commits_for_file(session: Session, repo_id: int, file_path: str, limit: int 
 
 
 def _git_log(root: Path, max_commits: int) -> list[tuple[str, str, str, str, list[str]]]:
+    """Run git log scoped to root, even when root is inside a larger git repo.
+
+    When ``flowindex init --here`` targets a subdirectory of a monorepo, we
+    locate the actual git root via ``find_git_root``, then pass the relative
+    path to ``git log -- <scope>`` so only relevant commits are returned.
+    File paths in the output are normalised to be relative to root (not the
+    git root) so they match the paths stored in the index.
+    """
+    git_root = find_git_root(root)
+    if git_root is None:
+        # Fallback: try running git directly at root (may still work)
+        git_root = root
+
+    root_resolved = root.resolve()
+    try:
+        rel_scope = str(root_resolved.relative_to(git_root))
+    except ValueError:
+        rel_scope = "."
+
     fmt = "%H%x1f%an%x1f%aI%x1f%s"
     try:
         proc = subprocess.run(
-            ["git", "-C", str(root), "log", f"-{max_commits}", f"--pretty=format:{fmt}", "--name-only"],
+            [
+                "git",
+                "-C",
+                str(git_root),
+                "log",
+                f"-{max_commits}",
+                f"--pretty=format:{fmt}",
+                "--name-only",
+                "--",
+                rel_scope,
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -126,6 +170,9 @@ def _git_log(root: Path, max_commits: int) -> list[tuple[str, str, str, str, lis
         return []
     if proc.returncode != 0:
         return []
+
+    # Prefix to strip from file entries so paths are relative to root
+    scope_prefix = rel_scope.rstrip("/") + "/" if rel_scope not in (".", "") else ""
 
     entries: list[tuple[str, str, str, str, list[str]]] = []
     current: tuple[str, str, str, str] | None = None
@@ -140,7 +187,10 @@ def _git_log(root: Path, max_commits: int) -> list[tuple[str, str, str, str, lis
                 current = (parts[0], parts[1], parts[2], parts[3])
                 files = []
         elif line.strip():
-            files.append(line.strip())
+            raw = line.strip()
+            if scope_prefix and raw.startswith(scope_prefix):
+                raw = raw[len(scope_prefix):]
+            files.append(raw)
     if current:
         entries.append((*current, files))
     return entries
