@@ -9,7 +9,7 @@ description = "Behavior-first repository indexing for AI coding agents"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-authors = [{ name = "FlowIndex Contributors" }]
+authors = [{ name = "Aditi Chatterji" }]
 keywords = ["ai", "agents", "code-analysis", "developer-tools", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -29,6 +29,12 @@ dependencies = [
     "tomli-w>=1.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/adu3110/flowIndex"
+Repository = "https://github.com/adu3110/flowIndex"
+Documentation = "https://github.com/adu3110/flowIndex/tree/main/docs"
+Issues = "https://github.com/adu3110/flowIndex/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
@@ -42,7 +48,7 @@ mcp = [
 ]
 
 [project.scripts]
-flowindex = "flowindex.cli:app"
+flowindex = "flowindex.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["flowindex"]

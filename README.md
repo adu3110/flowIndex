@@ -1,5 +1,9 @@
 # FlowIndex
 
+[![CI](https://github.com/adu3110/flowIndex/actions/workflows/ci.yml/badge.svg)](https://github.com/adu3110/flowIndex/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/flowindex)](https://pypi.org/project/flowindex/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Behavior-first repository indexing for AI coding agents.
 
 FlowIndex maps how a codebase behaves: entrypoints, call paths, tests, runtime traces, and git history. It helps AI coding agents understand impact before editing code.
@@ -40,22 +44,28 @@ No vector database. No LLM calls. No SaaS. Inspectable SQLite.
 ## Installation
 
 ```bash
-git clone <repo>
-cd FlowIndex
-pip install -e ".[dev]"
+pip install flowindex
 ```
 
-Optional MCP support:
+MCP support for Cursor / Claude Code:
 
 ```bash
-pip install -e ".[mcp]"
+pip install "flowindex[mcp]"
+```
+
+From source:
+
+```bash
+git clone https://github.com/adu3110/flowIndex.git
+cd flowIndex
+pip install -e ".[dev]"
 ```
 
 ## Quickstart
 
 ```bash
 cd your-project
-flowindex init
+flowindex init          # use --here inside nested example dirs
 flowindex scan
 flowindex overview
 flowindex explain "POST /api/payments"
@@ -63,6 +73,19 @@ flowindex impact src/services/ledger.py
 flowindex tests-for update_ledger
 flowindex context "fix duplicate payments when webhook retries"
 ```
+
+### Demo
+
+```bash
+cd examples/python_fastapi_app
+flowindex init --here
+flowindex scan
+flowindex context "fix duplicate payments when webhook retries"
+```
+
+Record a GIF locally: `brew install vhs && ./scripts/record-demo.sh`
+
+See [docs/demo-output.txt](docs/demo-output.txt) for captured terminal output.
 
 ## CLI examples
 
@@ -86,13 +109,31 @@ flowindex tests-for services/ledger.py
 flowindex context "fix webhook retry duplicate ledger entries"
 ```
 
-## MCP usage
+## MCP usage (Cursor)
+
+Add to Cursor MCP settings (`~/.cursor/mcp.json` or project settings):
+
+```json
+{
+  "mcpServers": {
+    "flowindex": {
+      "command": "flowindex",
+      "args": ["mcp"],
+      "cwd": "/absolute/path/to/your/repo"
+    }
+  }
+}
+```
+
+Run `flowindex init && flowindex scan` in that repo first.
+
+Start the server manually:
 
 ```bash
 flowindex mcp
 ```
 
-Connect from Cursor or Claude Code — see [docs/mcp.md](docs/mcp.md).
+Tools: `get_repo_overview`, `explain_entrypoint`, `get_change_impact`, `suggest_tests`, `make_context_pack`, and more — see [docs/mcp.md](docs/mcp.md).
 
 ## Architecture
 
