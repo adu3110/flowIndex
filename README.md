@@ -4,6 +4,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/flowindex)](https://pypi.org/project/flowindex/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+![FlowIndex demo](.github/assets/demo.gif)
+
 Behavior-first repository indexing for AI coding agents.
 
 FlowIndex maps how a codebase behaves: entrypoints, call paths, tests, runtime traces, and git history. It helps AI coding agents understand impact before editing code.

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: FlowIndex discussions
+    url: https://github.com/adu3110/flowIndex/discussions
+    about: Ask questions, share feedback, and discuss agent indexing workflows.
+  - name: Report a bug
+    url: https://github.com/adu3110/flowIndex/issues/new?template=bug_report.md
+    about: Report a reproducible issue with FlowIndex.
