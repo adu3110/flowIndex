@@ -1,0 +1,1 @@
+"""FlowIndex MCP integration."""
