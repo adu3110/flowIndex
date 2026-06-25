@@ -6,11 +6,11 @@
 
 ![FlowIndex demo](.github/assets/demo.gif)
 
-Behavior-first repository indexing for AI coding agents.
+> **File trees and embeddings tell you what exists. FlowIndex tells you what runs, what breaks, and what matters.**
 
-FlowIndex maps how a codebase behaves: entrypoints, call paths, tests, runtime traces, and git history. It helps AI coding agents understand impact before editing code.
+Behavior-first repository indexing for AI coding agents. FlowIndex maps how a codebase behaves: entrypoints, call paths, tests, runtime traces, and git history — so agents understand impact before editing code.
 
-Most coding-agent tools index files, chunks, symbols, or embeddings. FlowIndex indexes behavior.
+Most coding-agent tools index files, chunks, symbols, or embeddings. FlowIndex indexes **behavior**.
 
 It answers questions like:
 
